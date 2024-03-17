@@ -20,6 +20,8 @@ npm i -D nodemon
 npm i -D prettier
 //for consistency onwhole project
 
+npm i mongoose express dotenv
+
 
 to create multiple folder in src directory
 mkdir controllers,db,middlewares,models,routes,utils
