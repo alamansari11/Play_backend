@@ -25,3 +25,13 @@ npm i mongoose express dotenv
 
 to create multiple folder in src directory
 mkdir controllers,db,middlewares,models,routes,utils
+
+
+//for aggregation queries
+npm install mongoose-aggregate-paginate-v2
+
+//for encrypting and decrypting passwords
+npm install bcryptjs
+
+//for jwt token 
+npm i jsonwebtoken
