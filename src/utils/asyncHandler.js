@@ -4,6 +4,8 @@ const asyncHandler = (requestHandler) => {
   };
 };
 
+// this code allows you to wrap an asynchronous request handler function (requestHandler) with error handling. It ensures that any errors thrown within requestHandler are caught and passed to the Express.js next function, allowing for centralized error handling within an Express.js application.
+
 // const asyncHandler = () => {}
 // const asyncHandler = (func) =>  () => {}
 // const asyncHandler = (func) =>  aync () => {}
