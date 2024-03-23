@@ -11,11 +11,13 @@ import {
   updateUserCoverImage,
   getUserChannelProfile,
   getWatchHistory,
+  getAllUsers,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 const router = Router();
 
+router.route("/all").get(getAllUsers);
 router.route("/register").post(
   upload.fields([
     {

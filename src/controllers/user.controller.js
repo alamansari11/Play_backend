@@ -53,7 +53,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
   //console.log(req.files);
 
-  const avatarLocalPath = req.files?.avatar[0]?.path;
+  const avatarLocalPath = req?.files?.avatar[0]?.path;
   //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
   let coverImageLocalPath;
@@ -73,7 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
   if (!avatar) {
-    throw new ApiError(400, "Avatar file is required");
+    throw new ApiError(400, "Error occured while uploading avatar file");
   }
 
   const user = await User.create({
@@ -441,6 +441,13 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     );
 });
 
+const getAllUsers = asyncHandler(async (req, res) => {
+  const user = await User.find().select("-password");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account updated successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -453,4 +460,5 @@ export {
   updateUserCoverImage,
   getUserChannelProfile,
   getWatchHistory,
+  getAllUsers,
 };
