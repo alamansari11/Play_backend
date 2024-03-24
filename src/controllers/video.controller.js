@@ -1,4 +1,4 @@
-import mongoose, { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId, Mongoose, Schema } from "mongoose";
 import { Video } from "../models/video.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -7,8 +7,76 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
   //TODO: get all videos based on query, sort, pagination
+  let { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+  // console.log({ page, limit, query, sortBy, sortType, userId });
+
+  //here we can also use Number() to convert but parseInt will make sure it be an integer of base 10
+  page = parseInt(page, 10);
+  limit = parseInt(limit, 10);
+
+  page = Math.max(1, page); // Ensure the page is atleast 1
+  limit = Math.min(10, Math.max(1, limit)); //ensure the limit is between 1 and 10
+
+  const pipeline = [];
+
+  //Match the video by owner Id if provided
+  if (userId) {
+    if (!isValidObjectId(userId)) {
+      throw new ApiError(400, "userId is invalid");
+    }
+    pipeline.push({
+      $match: {
+        owner: new mongoose.Types.ObjectId(userId),
+      },
+    });
+  }
+
+  if (query) {
+    //as match with text is only allowed as first pipeline hence using unshift to push it in the front
+    pipeline.unshift({
+      $match: {
+        //$match Stage: Inside the conditional block, a $match stage is added to the aggregation pipeline. The $match stage filters documents in the collection that match certain criteria.
+        $text: {
+          //Within the $match stage, MongoDB's text search functionality is used. This is enabled by the $text operator, which allows for full-text search capabilities.
+          $search: query, //The $search operator is used within $text. It specifies the search query provided by the client. MongoDB will search for documents that contain the specified search terms.
+        },
+      },
+    });
+  }
+  const sortCriteria = {};
+  // videos can be sorted based on created at and updated at and other types
+  if (sortBy && sortType) {
+    sortCriteria[sortBy] = sortType === "asc" ? 1 : -1; // create an object if asc is set the sortBy to 1
+    pipeline.push({
+      $sort: sortCriteria,
+    });
+  } else {
+    sortCriteria["createdAt"] = -1; // default to descending order of created at
+    pipeline.push({
+      $sort: sortCriteria,
+    });
+  }
+  const options = {
+    page,
+    limit,
+  };
+  // Apply pagination using skip and limit
+  pipeline.push({
+    $skip: (page - 1) * limit,
+  });
+  pipeline.push({
+    $limit: limit,
+  });
+
+  let myAggregate = await Video.aggregate(pipeline);
+  // const response = await Video.aggregatePaginate(myAggregate, options);
+  // if (!response) {
+  //   throw new ApiError(400, "unable to fetch the videos");
+  // }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, myAggregate, "Video fetch successfully"));
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -60,22 +128,106 @@ const publishAVideo = asyncHandler(async (req, res) => {
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
-  const { videoId } = req.params;
   //TODO: get video by id
+  const { videoId } = req.params;
+  if (!videoId) {
+    throw new ApiError(400, "video id required");
+  }
+
+  try {
+    const video = await Video.findOne({
+      _id: new mongoose.Types.ObjectId(videoId),
+    });
+    if (!video) {
+      throw new ApiError(400, "Unable to find video");
+    }
+    return res
+      .status(200)
+      .json(new ApiResponse(200, video, "Video fetched successfully"));
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Internal Server Error");
+  }
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: update video details like title, description, thumbnail
+  const { title, description } = req.body;
+  const thumbnailPath = req.file?.path;
+  if (!videoId) {
+    throw new ApiError(400, "video id required");
+  }
+  const updateData = {};
+  // add data in object
+  if (title) {
+    updateData["title"] = title;
+  }
+  if (description) {
+    updateData["description"] = description;
+  }
+  if (thumbnailPath) {
+    const thumbnail = await uploadOnCloudinary(thumbnailPath);
+    if (thumbnail) {
+      updateData["thumbnail"] = thumbnail.url;
+    } else {
+      throw new ApiError(400, "Error on uploading thumbnail");
+    }
+  }
+  // console.log(updateData);
+
+  try {
+    const updatedVideo = await Video.findByIdAndUpdate(
+      videoId,
+      {
+        $set: updateData,
+      },
+      {
+        new: true,
+      }
+    );
+    if (!updatedVideo) {
+      throw new ApiError(400, "Unable to update video");
+    }
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedVideo, "Video updated successfully"));
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Internal Server Error");
+  }
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: delete video
+  if (!videoId) {
+    throw new ApiError(400, "video id required");
+  }
+  try {
+    const deletedVideo = await Video.deleteOne({ _id: videoId });
+    if (!deletedVideo) {
+      throw new ApiError(400, "Unable to delete video");
+    }
+    return res
+      .status(200)
+      .json(new ApiResponse(200, deletedVideo, "Video deleted successfully"));
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Internal Server Error");
+  }
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+
+  try {
+    const toggledStatus = await Video.findById({ _id: videoId });
+    toggledStatus.isPublished = !toggledStatus.isPublished;
+    toggledStatus.save({ validateBeforeSave: false });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, toggledStatus, "Video status updated"));
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Internal Server Error");
+  }
 });
 
 export {

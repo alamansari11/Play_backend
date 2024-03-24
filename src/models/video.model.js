@@ -41,7 +41,8 @@ const videoSchema = new Schema(
         timestamps: true
     }
 )
-
+// for making the fields searchable in the db 
+videoSchema.index({title: "text", description: "text"})
 videoSchema.plugin(mongooseAggregatePaginate)
 
 export const Video = mongoose.model("Video", videoSchema)
