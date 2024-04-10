@@ -62,21 +62,21 @@ const getAllVideos = asyncHandler(async (req, res) => {
     limit,
   };
   // Apply pagination using skip and limit
-  pipeline.push({
-    $skip: (page - 1) * limit,
-  });
-  pipeline.push({
-    $limit: limit,
-  });
-
-  let myAggregate = await Video.aggregate(pipeline);
-  // const response = await Video.aggregatePaginate(myAggregate, options);
-  // if (!response) {
-  //   throw new ApiError(400, "unable to fetch the videos");
-  // }
+  // pipeline.push({
+  //   $skip: (page - 1) * limit,
+  // });
+  // pipeline.push({
+  //   $limit: limit,
+  // });
+  /// do not put await in myaggregate because aggregatepaginate will not give proper response
+  const myAggregate = Video.aggregate(pipeline);
+  const response = await Video.aggregatePaginate(myAggregate, options);
+  if (!response) {
+    throw new ApiError(400, "unable to fetch the videos");
+  }
   return res
     .status(200)
-    .json(new ApiResponse(200, myAggregate, "Video fetch successfully"));
+    .json(new ApiResponse(200, response, "Video fetch successfully"));
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
